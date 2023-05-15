@@ -26,7 +26,8 @@ class ParameterizedGaussianPolicy(torch.nn.Module):
     def get_action_distribution(self, state):
         """ return the expectation and variance of a gaussian action """
         state = torch.FloatTensor(state)
-        mu, sigma = self(state)
+        with torch.no_grad():
+            mu, sigma = self(state)
         return mu.numpy(), sigma.numpy()
 
     def sample_action(self, state):

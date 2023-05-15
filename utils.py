@@ -4,6 +4,9 @@ from PIL import Image, ImageDraw, ImageFont
 from IPython.display import HTML
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats as stats
 
 
 def plot_video(images, fps=30):
@@ -21,6 +24,12 @@ def plot_video(images, fps=30):
     encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
     html = f'<img src="data:image/gif;base64,{encoded}" style="height:350px"/>'
     return HTML(html)
+
+
+def plot_gaussian(mean, var):
+    x = np.linspace(-2, 2, 100)
+    plt.plot(x, stats.norm.pdf(x, mean, np.sqrt(var)))
+    plt.show()
 
 
 def evaluate_agent_episode(policy, env):
@@ -42,6 +51,20 @@ def evaluate_agent(policy, env, n_episodes=10):
         total_rewards.append(total_reward)
 
     return np.mean(total_rewards)
+
+
+def visualize_policy(policy, env):
+    observation, info = env.reset()
+    images = []
+    terminated = False
+    truncated = False
+    while not terminated and not truncated:
+        images.append(env.render())
+        action = policy.sample_action_no_grad(observation)
+        observation, reward, terminated, truncated, info = env.step(action)
+        observation = normalize_pendulum_obs(observation)
+
+    return plot_video(images)
 
 ########################## old garbage:
 
