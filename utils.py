@@ -2,6 +2,8 @@ import io
 import base64
 from PIL import Image, ImageDraw, ImageFont
 from IPython.display import HTML
+import numpy as np
+import torch
 
 
 def plot_video(images, fps=30):
@@ -20,10 +22,28 @@ def plot_video(images, fps=30):
     html = f'<img src="data:image/gif;base64,{encoded}" style="height:350px"/>'
     return HTML(html)
 
-########################## old garbage:
 
-import numpy as np
-import torch
+def evaluate_agent_episode(policy, env):
+    total_reward = 0
+    terminated, truncated = False, False
+    observation, info = env.reset()
+    while not terminated and not truncated:
+        action = policy.sample_action_no_grad(observation)
+        observation, reward, terminated, truncated, info = env.step(action)
+        total_reward += reward
+
+    return total_reward
+
+
+def evaluate_agent(policy, env, n_episodes=10):
+    total_rewards = []
+    for i in range(n_episodes):
+        total_reward = evaluate_agent_episode(policy, env)
+        total_rewards.append(total_reward)
+
+    return np.mean(total_rewards)
+
+########################## old garbage:
 
 from parameterized_policy import ParameterizedGaussianPolicy
 
@@ -51,14 +71,6 @@ def collect_episode(policy: ParameterizedGaussianPolicy, env):
         rewards.append(reward)
 
     return states, actions, rewards
-
-
-def evaluate_agent(policy: ParameterizedGaussianPolicy, env, num_episodes=10):
-    rewards = []
-    for ep_idx in range(num_episodes):
-        _, _, ep_rewards = collect_episode(policy, env)
-        rewards.append(sum(ep_rewards))
-    return sum(rewards) / len(rewards)
 
 
 def get_discounted_returns(rewards, gamma):

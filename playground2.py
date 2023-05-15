@@ -5,82 +5,65 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Normal
 from utils import evaluate_agent
+from parameterized_policy import ParameterizedGaussianPolicy
 
 
-
-class Policy(nn.Module):
-    def __init__(self, state_dim, action_dim, action_range):
-        super(Policy, self).__init__()
-        self.hidden1 = nn.Linear(state_dim, 128)
-        self.hidden2 = nn.Linear(128, 64)
-        self.mu_layer = nn.Linear(64, action_dim)
-        self.sigma_layer = nn.Linear(64, action_dim)
-        self.action_range = action_range
-
-    def forward(self, state):
-        x = torch.relu(self.hidden1(state))
-        x = torch.relu(self.hidden2(x))
-        mu = torch.tanh(self.mu_layer(x)) * self.action_range
-        sp = torch.nn.Softplus()
-        sigma = sp(self.sigma_layer(x)) + 1e-5
-        return mu, sigma
-
-    def act(self, state):
-        mu, sigma = self.forward(state)
-        dist = Normal(mu, sigma)
-        action = dist.sample()
-        return action.clamp(-self.action_range, self.action_range), dist.log_prob(action)
-
-
-def reinforce(env, policy, optimizer, gamma=0.99, n_episodes=1000, last_step_to_use=150):
+def reinforce(env, policy, learning_rate=0.0002, gamma=0.99, n_episodes=1000, last_step_to_use=150):
     for episode in range(n_episodes):
         state, _ = env.reset()
         episode_reward = 0
-        episode_states, episode_actions, episode_rewards, episode_log_probs = [], [], [], []
+        episode_states, episode_actions, episode_rewards, actions_log_likelihood_grads = [], [], [], []
         terminated = False
         truncated = False
 
         while (not terminated) and (not truncated):
-            action, log_prob = policy.act(torch.FloatTensor(state).unsqueeze(0))
+            action, log_likelihood_grad = policy.sample_action(state)
             episode_states.append(state)
             episode_actions.append(action)
-            episode_log_probs.append(log_prob)
-            state, reward, terminated, truncated, info = env.step([action.item()])
+            actions_log_likelihood_grads.append(log_likelihood_grad)
+            state, reward, terminated, truncated, info = env.step(action)
             episode_rewards.append(reward)
             episode_reward += reward
 
-        G = 0
-        returns = []
-        for r in episode_rewards[::-1]:
-            G = r + gamma * G
-            returns.insert(0, G)
+        # compute return for each step, from the end to the beginning:
+        episode_returns = []
+        current_return = 0
+        for reward in episode_rewards[::-1]:
+            current_return = reward + gamma * current_return
+            episode_returns.insert(0, current_return)
 
-        returns = torch.FloatTensor(returns)
-        returns = (returns - returns.mean()) / (returns.std() + 1e-9)
-        policy_loss = []
-        for log_prob, G in zip(episode_log_probs[:last_step_to_use], returns[:last_step_to_use]):
-            policy_loss.append(-log_prob * G)
-        policy_loss = torch.stack(policy_loss).sum()
+        # normalize episode_returns, for stability:
+        episode_returns = np.array(episode_returns)
+        episode_returns = (episode_returns - episode_returns.mean()) / (episode_returns.std() + 1e-9)
 
-        optimizer.zero_grad()
-        policy_loss.backward()
-        optimizer.step()
+        policy_parameters = policy.get_parameters_vector()
+        # update the parameters according to the policy gradient:
+        for i in range(len(episode_returns) - last_step_to_use,):
+            current_return = episode_returns[i]
+            log_likelihood_grad = actions_log_likelihood_grads[i]
 
-        if episode % 10 == 0:
+            policy_parameters = policy_parameters + learning_rate * log_likelihood_grad * current_return
+
+        policy.set_parameters_vector(policy_parameters)
+
+        if episode % 20 == 0:
             # evaluate agent:
-            print(f"Episode {episode}: Total Reward = {episode_reward}")
+            mean_reward = evaluate_agent(policy, env, n_episodes=5)
+            print(f"Episode {episode}: Evaluation mean accumulated reward = {mean_reward}")
 
 
 if __name__ == "__main__":
-    gravity = 2.0
+    np.random.seed(2023)
+    torch.manual_seed(2023)
 
-    env = gym.make("Pendulum-v1", render_mode="human", g=gravity)
+    gravity = 1.0
+
+    env = gym.make("Pendulum-v1", g=gravity)
     action_range = 2.
-    policy = Policy(env.observation_space.shape[0], env.action_space.shape[0], action_range)
+    policy = ParameterizedGaussianPolicy(env.observation_space.shape[0], env.action_space.shape[0], action_range)
     # print number of parameters in the policy:
     print(f"Number of parameters in the policy: {sum([np.prod(p.shape) for p in policy.parameters()])}")
-    optimizer = optim.SGD(policy.parameters(), lr=2e-4)
-    reinforce(env, policy, optimizer, gamma=0.97, n_episodes=1000, last_step_to_use=150)
+    reinforce(env, policy, gamma=0.97, learning_rate=0.0005, n_episodes=750, last_step_to_use=150)
 
     for i in range(5):
         env = gym.make("Pendulum-v1", render_mode="human", g=gravity)
@@ -88,6 +71,6 @@ if __name__ == "__main__":
         terminated = False
         truncated = False
         while (not terminated) and (not truncated):
-            action, _ = policy.act(torch.FloatTensor([state]))
+            action, _ = policy.sample_action(state)
             state, reward, terminated, truncated, info = env.step([action.item()])
             env.render()

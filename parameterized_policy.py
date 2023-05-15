@@ -1,62 +1,64 @@
 import random
 import torch
+from torch.distributions import Normal
+import torch.nn as nn
 
 
 class ParameterizedGaussianPolicy(torch.nn.Module):
-    def __init__(self, input_size, output_size, action_scale=2, hidden_layers=(64,)):
+    def __init__(self, state_dim, action_dim, action_range):
         super(ParameterizedGaussianPolicy, self).__init__()
+        self.hidden1 = nn.Linear(state_dim, 128)
+        self.hidden2 = nn.Linear(128, 64)
+        self.mu_layer = nn.Linear(64, action_dim)
+        self.sigma_layer = nn.Linear(64, action_dim)
+        self.action_range = action_range
+        self.softplus = nn.Softplus()
 
-        self.action_scale = action_scale
+    def forward(self, state):
+        x = torch.relu(self.hidden1(state))
+        x = torch.relu(self.hidden2(x))
+        mu = torch.tanh(self.mu_layer(x)) * self.action_range
 
-        self.layer_sizes = (input_size,) + hidden_layers
-        self.layers = []
-        for i in range(len(self.layer_sizes) - 1):
-            self.layers.append(torch.nn.Linear(self.layer_sizes[i], self.layer_sizes[i + 1]))
-            self.layers.append(torch.nn.Tanh())
-        self.layers = torch.nn.Sequential(*self.layers)
+        sigma = self.softplus(self.sigma_layer(x)) + 1e-5
+        return mu, sigma
 
-        self.mean_layer = torch.nn.Linear(self.layer_sizes[-1], output_size)
-        # self.log_std_layer = torch.nn.Linear(self.layer_sizes[-1], output_size)
-
-        self.mean_tanh = torch.nn.Tanh()
-
-    def forward(self, x):
-        z = self.layers(x)
-        mean = self.mean_layer(z)
-        # log_std = self.log_std_layer(z)
-        # log_std = torch.clamp(log_std, min=-10, max=1)
-        log_std = torch.tensor([-1])
-        mean = self.mean_tanh(mean) * self.action_scale
-
-        # n = random.random()
-        # if n > 0.95:
-        #     print(f"mean: {mean}, log_std: {log_std}")
-
-        return mean, log_std
+    # none torch methods to abstract the policy for the user:
+    def get_action_distribution(self, state):
+        """ return the expectation and variance of a gaussian action """
+        state = torch.FloatTensor(state)
+        mu, sigma = self(state)
+        return mu.numpy(), sigma.numpy()
 
     def sample_action(self, state):
+        """
+        sample an action for a given state, return the action,
+         and the gradient of the log probability of the action, as one vector similar to the get_parameters vector
+        """
+        state = torch.FloatTensor(state)
+
+        mu, sigma = self(state)
+        dist = Normal(mu, sigma)
+        action = dist.sample()
+
+        log_likelihood = dist.log_prob(action)
+        log_likelihood_grad = torch.autograd.grad(log_likelihood, self.parameters())
+        log_likelihood_grad = torch.nn.utils.parameters_to_vector(log_likelihood_grad)
+
+        return action.clamp(-self.action_range, self.action_range).numpy(), log_likelihood_grad.numpy()
+
+    def sample_action_no_grad(self, state):
+        """ for evaluation only, shouldn't be explicitly used in the tutorial"""
+        state = torch.FloatTensor(state)
         with torch.no_grad():
-            state = torch.tensor(state).unsqueeze(0)
-            mean, log_std = self(state)
-            std = torch.exp(log_std)
-            action = torch.normal(mean, std)
-        return action.squeeze(0).numpy()
+            mu, sigma = self(state)
+            dist = Normal(mu, sigma)
+            action = dist.sample()
+        return action.clamp(-self.action_range, self.action_range).numpy()
 
     def get_parameters_vector(self):
-        return torch.nn.utils.parameters_to_vector(self.parameters())
+        """ return the parameters of the policy as one vector """
+        return torch.nn.utils.parameters_to_vector(self.parameters()).detach().numpy()
 
     def set_parameters_vector(self, parameters_vector):
-        torch.nn.utils.vector_to_parameters(parameters_vector, self.parameters())
-
-    def get_grad_log_likelihood(self, state, action):
-        state = torch.tensor(state).unsqueeze(0)
-        action = torch.tensor(action).unsqueeze(0)
-
-        mean, log_std = self(state)
-        std = torch.exp(log_std)
-
-        log_likelihood = torch.distributions.Normal(mean, std).log_prob(action).sum()
-        grad_log_likelihood = torch.autograd.grad(log_likelihood, self.parameters())
-
-        # return grad as one vecotr corresponding to all parameters
-        return torch.nn.utils.parameters_to_vector(grad_log_likelihood)
+        """ set the parameters of the policy from a vector similar to the get_parameters vector """
+        torch.nn.utils.vector_to_parameters(torch.FloatTensor(parameters_vector), self.parameters())
