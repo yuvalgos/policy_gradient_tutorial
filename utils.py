@@ -5,10 +5,8 @@ from IPython.display import HTML
 
 
 def plot_video(images, fps=30):
-    # Create a list of PIL Image objects
     frames = [Image.fromarray(img) for img in images]
 
-    # Create a buffer to hold the encoded frames
     buffer = io.BytesIO()
 
     # Add a frame counter to each image
@@ -17,16 +15,9 @@ def plot_video(images, fps=30):
         font = ImageFont.truetype("arial.ttf", 16)
         draw.text((10, 10), f'step: {i}', font=font, fill=(125, 125, 125))
 
-    # Save the frames as an animated GIF
     frames[0].save(buffer, format='GIF', append_images=frames[1:], save_all=True, duration=1000 / fps, loop=0)
-
-    # Get the encoded GIF data
     encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
-
-    # Create an HTML tag to display the GIF
-    html = f'<img src="data:image/gif;base64,{encoded}" />'
-
-    # Return the HTML tag
+    html = f'<img src="data:image/gif;base64,{encoded}" style="height:350px"/>'
     return HTML(html)
 
 ########################## old garbage:
