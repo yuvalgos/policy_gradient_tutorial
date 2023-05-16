@@ -18,7 +18,7 @@ def plot_video(images, fps=30):
     for i, frame in enumerate(frames):
         draw = ImageDraw.Draw(frame)
         font = ImageFont.truetype("arial.ttf", 16)
-        draw.text((10, 10), f'step: {i}', font=font, fill=(125, 125, 125))
+        draw.text((10, 10), f'step: {i%200}', font=font, fill=(42, 42, 42))
 
     frames[0].save(buffer, format='GIF', append_images=frames[1:], save_all=True, duration=1000 / fps, loop=0)
     encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
@@ -53,16 +53,19 @@ def evaluate_agent(policy, env, n_episodes=10):
     return np.mean(total_rewards)
 
 
-def visualize_policy(policy, env):
-    observation, info = env.reset()
+def visualize_policy(policy, env, n_episodes=1):
     images = []
-    terminated = False
-    truncated = False
-    while not terminated and not truncated:
-        images.append(env.render())
-        action = policy.sample_action_no_grad(observation)
-        observation, reward, terminated, truncated, info = env.step(action)
-        observation = normalize_pendulum_obs(observation)
+    for i in range(n_episodes):
+        observation, info = env.reset()
+        curr_episode_images = []
+        terminated = False
+        truncated = False
+        while not terminated and not truncated:
+            curr_episode_images.append(env.render())
+            action = policy.sample_action_no_grad(observation)
+            observation, reward, terminated, truncated, info = env.step(action)
+
+        images = images + [np.zeros_like(curr_episode_images[0])]*6 + curr_episode_images
 
     return plot_video(images)
 
