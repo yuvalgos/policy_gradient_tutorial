@@ -7,6 +7,7 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
+from IPython.display import display, clear_output
 
 
 def plot_video(images, fps=30):
@@ -65,9 +66,45 @@ def visualize_policy(policy, env, n_episodes=1):
             action = policy.sample_action_no_grad(observation)
             observation, reward, terminated, truncated, info = env.step(action)
 
-        images = images + [np.zeros_like(curr_episode_images[0])]*6 + curr_episode_images
+        images = images + [np.zeros_like(curr_episode_images[0])]*15 + curr_episode_images
 
     return plot_video(images)
+
+
+class ActivePlotter:
+    def __init__(self, max_iteration, reward_range=(-1900, 0)):
+        self.iterations = []
+        self.mean_rewards = []
+        self.fig = plt.figure()
+        self.ax = self.fig.add_subplot(1, 1, 1)
+
+        self.ax.set_xlabel('Episode')
+        self.ax.set_ylabel('Mean Eval Reward')
+        self.ax.set_title('Evaluation Results')
+        self.ax.set_xlim([0, max_iteration])
+        self.ax.set_ylim(reward_range)
+        self.ax.grid(True)
+
+        self.ax.plot(self.iterations, self.mean_rewards, 'b-')
+
+    def update_plot(self, iteration, mean_reward):
+        self.iterations.append(iteration)
+        self.mean_rewards.append(mean_reward)
+
+        self.ax.plot(self.iterations, self.mean_rewards, 'b-')
+        display(self.fig)
+        clear_output(wait=True)
+        plt.pause(0.005)
+
+        # self.ax.clear()
+        # self.ax.plot(self.iterations, self.mean_rewards, 'b-')
+        # self.figure.canvas.draw()
+        # plt.show()
+        # plt.pause(0.001)  # Pause to display the plot
+
+    def close(self):
+        plt.close(self.figure)
+
 
 ########################## old garbage:
 
