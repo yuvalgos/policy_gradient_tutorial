@@ -38,7 +38,7 @@ def evaluate_agent_episode(policy, env):
     terminated, truncated = False, False
     observation, info = env.reset()
     while not terminated and not truncated:
-        action = policy.sample_action_no_grad(observation)
+        action = policy.get_action(observation)
         observation, reward, terminated, truncated, info = env.step(action)
         total_reward += reward
 
@@ -63,7 +63,7 @@ def visualize_policy(policy, env, n_episodes=1):
         truncated = False
         while not terminated and not truncated:
             curr_episode_images.append(env.render())
-            action = policy.sample_action_no_grad(observation)
+            action = policy.get_action(observation)
             observation, reward, terminated, truncated, info = env.step(action)
 
         images = images + [np.zeros_like(curr_episode_images[0])]*15 + curr_episode_images

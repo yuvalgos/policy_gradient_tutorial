@@ -47,7 +47,7 @@ class ParameterizedGaussianPolicy(torch.nn.Module):
 
         return action.clamp(-self.action_range, self.action_range).numpy(), log_likelihood_grad.numpy()
 
-    def sample_action_no_grad(self, state):
+    def get_action(self, state):
         """ for evaluation only, shouldn't be explicitly used in the tutorial"""
         state = torch.FloatTensor(state)
         with torch.no_grad():
