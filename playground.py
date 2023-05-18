@@ -1,11 +1,8 @@
 import gymnasium as gym
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.distributions import Normal
-from utils import evaluate_agent
-from parameterized_policy import ParameterizedGaussianPolicy
+from pg_tutorial.utils import evaluate_agent
+from pg_tutorial.parameterized_policy import ParameterizedGaussianPolicy
 
 
 def reinforce(env, policy, learning_rate=0.0002, gamma=0.99, n_episodes=1000, last_step_to_use=150):
