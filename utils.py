@@ -94,7 +94,7 @@ class ActivePlotter:
         self.ax.plot(self.iterations, self.mean_rewards, 'b-')
         display(self.fig)
         clear_output(wait=True)
-        plt.pause(0.005)
+        plt.pause(0.0001)
 
         # self.ax.clear()
         # self.ax.plot(self.iterations, self.mean_rewards, 'b-')
