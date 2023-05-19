@@ -18,7 +18,7 @@ def plot_video(images, fps=30):
     # Add a frame counter to each image
     for i, frame in enumerate(frames):
         draw = ImageDraw.Draw(frame)
-        font = ImageFont.truetype("arial.ttf", 16)
+        font = ImageFont.load_default()
         draw.text((10, 10), f'step: {i%200}', font=font, fill=(42, 42, 42))
 
     frames[0].save(buffer, format='GIF', append_images=frames[1:], save_all=True, duration=1000 / fps, loop=0)
