@@ -1,6 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from utils import evaluate_agent
+from pg_tutorial.utils import evaluate_agent
 
 
 def visualize_parameter_space(policy, env, thetas_range=20, n_thetas=20):
