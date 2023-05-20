@@ -16,16 +16,17 @@ def visualize_parameter_space(policy, env, thetas_range=20, n_thetas=20):
         for j, theta_2 in enumerate(theta_2_values):
             policy.theta_1 = theta_1
             policy.theta_2 = theta_2
-            rewards[i, j] = evaluate_agent(policy, env, n_episodes=3)
+            rewards[i, j] = evaluate_agent(policy, env, n_episodes=7)
 
     # plot the results:
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1, projection='3d')
     theta_1_grid, theta_2_grid = np.meshgrid(theta_1_values, theta_2_values)
     # opacity 0.5
-    ax.plot_surface(theta_1_grid, theta_2_grid, rewards, cmap='viridis', alpha=0.7)
+    ax.plot_surface(theta_1_grid, theta_2_grid, rewards, cmap='viridis', alpha=0.5)
     # plot original thetas point, make sure it's visible:
-    ax.scatter(theta_1_original, theta_2_original, evaluate_agent(policy, env, n_episodes=3), color='red', s=100)
+    ax.scatter(theta_1_original, theta_2_original, evaluate_agent(policy, env, n_episodes=7), color='red', s=100)
+
 
     ax.set_xlabel(r'$\theta_1}$')
     ax.set_ylabel(r'$\theta_2$')
