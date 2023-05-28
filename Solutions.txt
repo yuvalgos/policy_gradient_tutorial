@@ -2,7 +2,7 @@ TODO1:
 
 env = gym.make("Pendulum-v1", render_mode="rgb_array", g=gravity)
 policy = ParameterizedGaussianPolicy(state_dim=3, action_dim=1, action_range=2)
-reinforce(env, policy, gamma=0.97, learning_rate=0.0005, n_episodes=500, plotter=plotter)
+NN_mean_eval_rewars = reinforce(env, policy, gamma=0.97, learning_rate=0.0005, n_episodes=500, plotter=plotter)
 
 
 TODO2:
